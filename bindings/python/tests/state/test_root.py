@@ -12,7 +12,9 @@ import pytest
 
 from ethlib.state import state_root
 
-_CASES = json.loads((Path(__file__).resolve().parent / "genesis" / "basic_genesis_tests.json").read_text())
+_CASES = json.loads(
+    (Path(__file__).resolve().parent / "genesis" / "basic_genesis_tests.json").read_text()
+)
 
 # The root of the empty trie: the Keccak-256 hash of `0x80`.
 EMPTY_TRIE_ROOT = bytes.fromhex("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
@@ -82,13 +84,15 @@ def encode_alloc(alloc: dict) -> bytes:
             [_int(key).to_bytes(32, "big"), _int(value)]
             for key, value in account.get("storage", {}).items()
         ]
-        accounts.append([
-            bytes.fromhex(address.removeprefix("0x")),
-            _int(account.get("nonce", "0")),
-            _int(account.get("balance", account.get("wei", "0"))),
-            bytes.fromhex(account.get("code", "0x").removeprefix("0x")),
-            storage,
-        ])
+        accounts.append(
+            [
+                bytes.fromhex(address.removeprefix("0x")),
+                _int(account.get("nonce", "0")),
+                _int(account.get("balance", account.get("wei", "0"))),
+                bytes.fromhex(account.get("code", "0x").removeprefix("0x")),
+                storage,
+            ]
+        )
     return rlp_encode(accounts)
 
 
@@ -128,14 +132,17 @@ def test_rejects_repeated_address() -> None:
         state_root(rlp_encode([account, account]))
 
 
-@pytest.mark.parametrize("state", [
-    b"",
-    rlp_encode(b"\x01\x02"),
-    rlp_encode([[ADDRESS_A, 0, 0, b""]]),
-    rlp_encode([[ADDRESS_A[:19], 0, 0, b"", []]]),
-    rlp_encode([[ADDRESS_A, 0, 2**256, b"", []]]),
-    rlp_encode([[ADDRESS_A, 0, 0, b"", [[b"\x03", 7]]]]),
-])
+@pytest.mark.parametrize(
+    "state",
+    [
+        b"",
+        rlp_encode(b"\x01\x02"),
+        rlp_encode([[ADDRESS_A, 0, 0, b""]]),
+        rlp_encode([[ADDRESS_A[:19], 0, 0, b"", []]]),
+        rlp_encode([[ADDRESS_A, 0, 2**256, b"", []]]),
+        rlp_encode([[ADDRESS_A, 0, 0, b"", [[b"\x03", 7]]]]),
+    ],
+)
 def test_rejects_malformed_state(state: bytes) -> None:
     with pytest.raises(ValueError):
         state_root(state)

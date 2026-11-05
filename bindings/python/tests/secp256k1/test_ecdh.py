@@ -43,7 +43,7 @@ def _cases():
             d = int(test["private"], 16)
             assert 0 < d < N
             shared = bytes.fromhex(test["shared"]) if test["result"] == "valid" else None
-            yield test["tcId"], d.to_bytes(32, "big"), public[len(HEADER):], shared
+            yield test["tcId"], d.to_bytes(32, "big"), public[len(HEADER) :], shared
 
 
 CASES = list(_cases())
@@ -58,8 +58,9 @@ def test_case_count() -> None:
     assert len(CASES) > 400
 
 
-@pytest.mark.parametrize("tc_id, private_key, public_key, shared", CASES,
-                         ids=[f"tc{c[0]}" for c in CASES])
+@pytest.mark.parametrize(
+    "tc_id, private_key, public_key, shared", CASES, ids=[f"tc{c[0]}" for c in CASES]
+)
 def test_ecdh(tc_id: int, private_key: bytes, public_key: bytes, shared: bytes | None) -> None:
     if shared is None:
         with pytest.raises(ValueError):
