@@ -38,7 +38,7 @@ DISAGREEMENTS = harness.disagreements(SUITE)
 pytestmark = pytest.mark.archive(catalogue.CONSENSUS["mainnet"])
 
 
-@pytest.mark.parametrize("case", harness.runnable(CASES), ids=lambda case: case.id)
+@pytest.mark.parametrize("case", harness.in_shard(CASES), ids=lambda case: case.id)
 def test_case(case, request, record_property) -> None:
     harness.run(ROOTS[case.preset], case, DISAGREEMENTS, request, record_property)
 
