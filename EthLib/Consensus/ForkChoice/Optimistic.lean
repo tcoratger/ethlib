@@ -20,6 +20,10 @@ Their votes and their boost do not count, and no new block can build on them.
 
 So the head falls back to the blocks that the execution layer has not found invalid.
 
+From Gloas a payload comes apart from its block, so only the payload is invalid.
+
+The blocks built on that payload leave the store, and the block stays without it.
+
 A valid payload never turns invalid, unless the execution layer is faulty.
 -/
 
@@ -95,6 +99,57 @@ def removeDescendants (first : Root) : Except ForkChoiceError (Store preset fork
     return if ← store.isAncestor ⟨known, .pending⟩ ⟨first, .pending⟩ then some known else none
   return store.removeBlocks removed
 
+/-- From Gloas: the first block of a chain whose payload is invalid, from a child on the chain.
+
+A candidate holds the earliest block found so far whose payload is invalid.
+
+The walk climbs from the child to its parent, and reads whether the child builds on its payload.
+
+When it does, and the hash names that payload, the candidate is the first invalid block.
+
+When it does and the hash names another payload, the parent's payload is invalid too.
+
+That parent then becomes the candidate.
+
+When the child builds on the parent without its payload, that payload is not on the chain.
+
+The result is none when the walk leaves the store first. -/
+def firstInvalidPayload (gloas : .glamsterdam ≤ fork) (latestValidHash : Hash32)
+    (candidate : Root) (child : BeaconBlock preset fork) :
+    Except ForkChoiceError (Option Root) :=
+  match _parentFound : store.blocks[child.parentRoot]? with
+  | none => pure none
+  | some parent =>
+    if _lower : parent.slot < child.slot then
+      if parentPayloadStatus child parent = .full then
+        if (parent.body.signedExecutionPayloadBid gloas).message.blockHash = latestValidHash then
+          pure (some candidate)
+        else firstInvalidPayload gloas latestValidHash child.parentRoot parent
+      else firstInvalidPayload gloas latestValidHash candidate parent
+    else throw (.parentSlotNotLower child.parentRoot)
+termination_by child.slot.toNat
+decreasing_by
+  all_goals exact UInt64.lt_iff_toNat_lt.mp _lower
+
+/-- From Gloas: the store without the payload of a block and every block built on that payload.
+
+A block built on it is a known block whose chain passes through the block with its payload.
+
+Those blocks, and every block that descends from one of them, leave the store with their payloads.
+
+The block itself stays, without its payload, since its state does not depend on it.
+
+An unknown root removes nothing. -/
+def removeFullDescendants (gloas : .glamsterdam ≤ fork) (first : Root) :
+    Except ForkChoiceError (Store preset fork) := do
+  if !store.blocks.contains first then return store
+  let removed ← store.blocks.keys.filterMapM fun known => do
+    return if ← store.isAncestor ⟨known, .pending⟩ ⟨first, .full⟩ then some known else none
+  let kept := store.removeBlocks removed
+  return { kept with
+    payloads := fun _ => (kept.payloads gloas).filter fun root _ =>
+      root != first && !removed.contains root }
+
 /-- The store after the execution layer finds the payload of a block invalid.
 
 The block may be known or new, and the latest valid hash may be absent.
@@ -117,11 +172,27 @@ That block and every known block that descends from it leave the store.
 
 If the justified block leaves, the head fails, since no chain is left to follow.
 
-From Gloas the rule is not yet specified here. -/
+From Gloas a payload comes apart from its block, and the latest valid hash names a payload.
+
+The first invalid block is then the earliest block of the chain whose payload is invalid.
+
+Its payload, every block built on that payload and their descendants leave the store.
+
+The block itself and its node without the payload stay, as do the blocks built on that node.
+
+No published source defines this rule from Gloas, so it is a choice of EthLib. -/
 def onInvalidPayload (block : BeaconBlock preset fork) (latestValidHash : Option Hash32) :
     Except ForkChoiceError (Store preset fork) := do
-  if .glamsterdam ≤ fork then throw (.forkNotYetSpecified fork)
   let root ← (SszType.hashTreeRoot block).mapError .ssz
+  if gloas : .glamsterdam ≤ fork then
+    let first ← match latestValidHash with
+      | none => pure (some root)
+      | some hash =>
+        if (block.body.signedExecutionPayloadBid gloas).message.blockHash = hash then pure none
+        else pure (some ((← store.firstInvalidPayload gloas hash root block).getD root))
+    return ← match first with
+      | none => pure store
+      | some first => store.removeFullDescendants gloas first
   let first ← match latestValidHash with
     | none => pure (some root)
     | some hash =>

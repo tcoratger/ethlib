@@ -2676,7 +2676,7 @@ The theorems here take that block as given.
 No theorem relates the optimistic set to the blocks that the store of the fork choice removes.
 A node is optimistic when its head is optimistic, or when invalid payloads left its block tree with no viable branch.
 `isOptimisticNode_of_isHeadOptimistic` shows that, at every fork, the first case alone makes an optimistic node.
-`isOptimisticNode_of_not_isHeadOptimistic` shows that, before Gloas, the second case needs a block that the fork choice dropped at or above the justified block.
+`isOptimisticNode_of_not_isHeadOptimistic` shows that the second case needs a block that the fork choice dropped at or above the justified block.
 So a tree that empties with nothing invalidated does not count.
 This assumes that the optimistic store holds only blocks that the fork choice accepted.
 The rule approximates the guide, which asks that every viable branch was invalidated: one invalidated block above the justified block is enough.
@@ -2715,9 +2715,20 @@ The optimistic store follows the fields of the guide, which do not record the pa
 `latestVerifiedAncestor_of_glamsterdam` shows that the answer is the first of those payloads that is not optimistic, with every one before it optimistic.
 `latestVerifiedAncestor_eq_error_of_optimistic` shows that it fails with `payloadNotVerified` when all of them are optimistic, or when there is none.
 Before Gloas the walk returns an optimistic genesis block; from Gloas it never returns an optimistic payload, a choice of EthLib.
-From Gloas the rule of the latest valid hash is not defined, and the second case of an optimistic node is not yet specified.
-That case needs the removal of an invalid payload from the store of the fork choice, which is not defined from Gloas.
-`isOptimisticNode_of_glamsterdam` shows that the rule then fails when the head is not optimistic.
+No published source says what an invalid payload removes from the store of the fork choice from Gloas.
+EthLib defines it as follows, a reading of its own that follows the fork choice of Gloas.
+A block and its payload are two nodes, and the state of a block does not depend on the block's own payload.
+So an invalid payload leaves its block valid, and the node of that block without its payload stays.
+A block whose bid builds on the invalid payload starts from a state that assumes that payload, so it leaves the store with its descendants.
+The latest valid hash names a payload, and the walk up the chain reads only the payloads on which the chain builds.
+The first invalid block is the earliest block of that walk whose payload is invalid; without a hash, or when no known payload matches, it is the block itself.
+`removeFullDescendants_eq` shows that the removal drops exactly the known blocks that descend from the first invalid block with its payload, and never that block itself.
+`removeFullDescendants_self` shows that the first invalid block stays and loses its payload.
+`onInvalidPayload_eq` shows that, at every fork, an invalid payload leaves the store as it was or applies the removal of its fork.
+`Linked.onInvalidPayload` shows that the removal keeps the store linked at every fork.
+The second case of an optimistic node then reads the dropped blocks at Gloas as before it.
+`isOptimisticNode_of_not_isHeadOptimistic` shows that, at every fork, the second case needs a dropped block at or above the justified block.
+An invalid payload of the justified block drops only the blocks built on that payload, so the node of that block without its payload can stay viable.
 `isOptimisticNode_of_isHeadOptimistic_error` shows that it fails as the optimism of the head does.
 The store holds the blocks of one fork, so a payload chain does not cross from Gloas into Fulu.
 From Heze the store also records whether a payload satisfies the inclusion lists of the slot before.

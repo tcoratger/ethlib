@@ -464,13 +464,14 @@ The guide asks that every viable branch was invalidated, which needs history the
 
 This rule approximates it: one invalidated block above the justified block is enough.
 
-From Gloas the second case is not yet specified, and the rule fails when the head is not optimistic.
+From Gloas a dropped block is one built on an invalid payload, or a descendant of one.
 
-It also fails as the optimism of the head does. -/
+A block whose own payload is invalid stays, so its node without the payload can stay viable.
+
+It fails as the optimism of the head, the chains of the dropped blocks or the filter does. -/
 def isOptimisticNode (config : Config) (optimistic : OptimisticStore preset fork)
     (store : Store preset fork) : Except ForkChoiceError Bool := do
   if ← optimistic.isHeadOptimistic then return true
-  if .glamsterdam ≤ fork then throw (.forkNotYetSpecified fork)
   if !(← optimistic.invalidatedAbove store) then return false
   store.hasNoViableBranch config
 
