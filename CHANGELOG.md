@@ -1134,6 +1134,16 @@ Not yet released.
 - `Internal.assigned_of_active` is moved to `Transition.ActiveKept` and says that an active validator has an assigned activation epoch.
   `ValidatorStep`, `PinDriftBound.CreditBudgets` and `PinDriftBound.PreviousEpochRise` use it.
 
+- In Lean, the Gloas step of the caching of a slot is its own function, `processNextPayloadAvailability` (`Consensus/Transition/StateTransition.lean`).
+  Before Gloas it returns the state, and from Gloas it marks the payload of the next slot as not yet available.
+  `processNextPayloadAvailability_ok` states that it changes only the availability bits, and `processNextPayloadAvailability_total` that it succeeds when a next slot exists.
+  Three proofs that read the body of `processSlot` use the first lemma instead of a case split on the fork.
+  The totality of `processSlot` uses the second.
+  `builderFrame_processSlot` now cites `processSlot_latestBlockHeader` and no longer reads the body.
+  A later step of a fork, written as its own function, then costs each proof that reads the body one binder and one line.
+  It no longer adds a branch to them ([#4594](https://github.com/ethereum/EthLib/issues/4594)).
+  No statement changes.
+
 ### Changes that break callers
 
 - A part of a slot, given in basis points, rounds to the nearest millisecond, a half up, where it rounded down, as consensus-specs v1.7.0-beta.5 does ([#4145](https://github.com/ethereum/EthLib/issues/4145)).
