@@ -41,7 +41,7 @@ theorem unsetNextPayloadAvailability_total [NeZero preset.SLOTS_PER_HISTORICAL_R
 
 /-- The availability step of a slot succeeds when a next slot exists.
 
-Before Gloas it succeeds without a next slot. -/
+The hypothesis on the slot is needed only from Gloas. -/
 theorem processNextPayloadAvailability_total
     -- The circular buffer of availability bits must have a positive length.
     [NeZero preset.SLOTS_PER_HISTORICAL_ROOT.toNat] (fits : state.slot.toNat + 1 < 2 ^ 64) :

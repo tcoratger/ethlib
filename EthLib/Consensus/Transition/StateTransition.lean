@@ -53,7 +53,10 @@ def unsetNextPayloadAvailability (state : BeaconState preset fork) (gloas : .gla
 
 /-- From Gloas: the state with the payload of the next slot marked as not yet available.
 
-Before Gloas it is the state itself. -/
+[EIP-7732] adds this step; before Gloas it is the state itself.
+
+[EIP-7732]: https://eips.ethereum.org/EIPS/eip-7732#beacon-chain-changes
+-/
 def processNextPayloadAvailability (state : BeaconState preset fork) :
     Except TransitionError (BeaconState preset fork) :=
   if gloas : .glamsterdam ≤ fork then liftAccessor (unsetNextPayloadAvailability state gloas)
