@@ -499,7 +499,7 @@ theorem payloadBlock_of_checkNewPayload {config : ChainConfig}
           (r.versionedHashes deneb).data.toList :=
   (json_route hFork hJson).1 hCheck
 
-/-- From Bellatrix to Gloas, the block that the checks read from the JSON of a request extends it.
+/-- From Bellatrix to Gloas, the block that the checks read from a request has its payload's hashes.
 
 Its parent hash is that of the payload, and its header hashes to the block hash of the payload. -/
 theorem header_of_checkNewPayload {config : ChainConfig}

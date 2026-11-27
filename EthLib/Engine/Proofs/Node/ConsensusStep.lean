@@ -97,7 +97,7 @@ theorem newPayloadStep_valid_of_accepts {r : Consensus.NewPayloadRequest preset 
     | invalid => exact absurd rfl (hKnown _ hb)
     | accepted => exact run fun b e => by cases e.symm.trans hb; rfl
 
-/-- From Bellatrix to Gloas, a payload new to a node is valid on it exactly when the model accepts.
+/-- From Bellatrix to Gloas, an unknown or accepted payload is valid exactly when the model accepts.
 
 The model is built from the chain of the head, which is the parent of the payload.
 
