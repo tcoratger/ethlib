@@ -29,6 +29,7 @@ public import EthLib.Execution.Proofs.Evm.Logic.Callee
 -- This import gives rules for opcodes.
 public import EthLib.Execution.Proofs.Evm.Logic.Rules
 public import EthLib.Execution.Proofs.Evm.Logic.Environment
+public import EthLib.Execution.Proofs.Evm.Logic.Accounts
 public import EthLib.Execution.Proofs.Evm.Logic.Copy
 public import EthLib.Execution.Proofs.Evm.Logic.Region
 public import EthLib.Execution.Proofs.Evm.Logic.Known

@@ -26,14 +26,14 @@ That rule gives the rule over the steps of the logic.
 
 The rule for DUP1 to DUP16 sits with the other rules.
 
-DUPN, SWAPN and EXCHANGE of Glamsterdam have no rule yet.
+DUPN, SWAPN and EXCHANGE of Glamsterdam read the byte after them, and move two bytes on.
 -/
 
 @[expose] public section
 
 namespace EthLib.Execution.Evm.Logic
 
-open EthLib.Base (Fork U256)
+open EthLib.Base (Fork U256 byteAtOrZero)
 open GasCosts
 
 variable {fork : Fork}
@@ -881,5 +881,82 @@ theorem clz_rule
   (clz_ruleG hfork hlt hbyte hgas).toHoare
 
 end Operands
+
+/-! ## The opcodes with an immediate byte, from Glamsterdam -/
+
+/-- The instruction of an opcode of the stack from Glamsterdam, which reads an immediate byte. -/
+private theorem instruction_stackN {op : Op}
+    {run : Evm fork Nat → Except EvmError (Evm fork Nat)}
+    (h : stackOnlyStep fork op = some run) : instruction fork op = some run :=
+  instruction_of_stackOnlyStep h
+
+/-- From Glamsterdam, DUPN pushes a copy of the item `n` of the stack, by EIP-8024.
+
+The byte after the opcode encodes `n`, and the opcode moves two bytes on.
+
+It costs 3 gas, and the stack needs room for one more word. -/
+theorem dupn_rule (hfork : .glamsterdam ≤ fork) {n : Nat} {x : U256} (hlt : pc < code.size)
+    (hbyte : code[pc] = 0xe6) (himm : decodeSingle (byteAtOrZero code (pc + 1)) = some n)
+    (hx : stack[n - 1]? = some x) (hgas : 3 ≤ gas) (hstack : stack.length < STACK_LIMIT) :
+    Hoare fork (At code message pc stack memory gas state substate returnData)
+      (At code message (pc + 2) (x :: stack) memory (gas - 3) state substate returnData) := by
+  apply At.rule hlt hbyte (ofByte_of_decode (op := .dupn) rfl hfork)
+    (instruction_stackN (by simp [stackOnlyStep, hfork]))
+  rintro evm ⟨hc, hj, hm, hpc, hst, hmem, hg, hrun, herr, hout, hs, hss, hrd⟩
+  have hcharge : GasMeter.charge evm.gas OPCODE_DUPN = .ok (gas - 3) := by
+    rw [hg]
+    exact charge_nat hgas
+  have himm' : decodeSingle (immediateByte evm.code evm.pc) = some n := by
+    simpa only [immediateByte, hc, hpc] using himm
+  have hroom : ¬evm.stack.val.length = STACK_LIMIT := by rw [hst]; omega
+  simp only [dupnStep, chargeGas, hcharge, bind, Except.bind, pure, Except.pure, himm', hst, hx,
+    pushWord, Stack.push, hroom, dite_false]
+  exact ⟨_, rfl, hc, hj, hm, by simp [advance, hpc], by simp [hst], hmem, rfl, hrun, herr, hout,
+    hs, hss, hrd⟩
+
+/-- From Glamsterdam, SWAPN exchanges the top word with the item `n` of the stack, by EIP-8024.
+
+The byte after the opcode encodes `n`, and the opcode moves two bytes on, for 3 gas. -/
+theorem swapn_rule (hfork : .glamsterdam ≤ fork) {n : Nat} {a b : U256} (hlt : pc < code.size)
+    (hbyte : code[pc] = 0xe7) (himm : decodeSingle (byteAtOrZero code (pc + 1)) = some n)
+    (ha : stack[0]? = some a) (hb : stack[n]? = some b) (hgas : 3 ≤ gas) :
+    Hoare fork (At code message pc stack memory gas state substate returnData)
+      (At code message (pc + 2) ((stack.set 0 b).set n a) memory (gas - 3) state substate
+        returnData) := by
+  apply At.rule hlt hbyte (ofByte_of_decode (op := .swapn) rfl hfork)
+    (instruction_stackN (by simp [stackOnlyStep, hfork]))
+  rintro evm ⟨hc, hj, hm, hpc, hst, hmem, hg, hrun, herr, hout, hs, hss, hrd⟩
+  have hcharge : GasMeter.charge evm.gas OPCODE_SWAPN = .ok (gas - 3) := by
+    rw [hg]
+    exact charge_nat hgas
+  have himm' : decodeSingle (immediateByte evm.code evm.pc) = some n := by
+    simpa only [immediateByte, hc, hpc] using himm
+  simp only [swapnStep, chargeGas, hcharge, bind, Except.bind, pure, Except.pure, himm',
+    exchangeItems, hst, ha, hb]
+  exact ⟨_, rfl, hc, hj, hm, by simp [advance, hpc], rfl, hmem, rfl, hrun, herr, hout, hs, hss,
+    hrd⟩
+
+/-- From Glamsterdam, EXCHANGE exchanges the items `n` and `m` of the stack, by EIP-8024.
+
+The byte after the opcode encodes the pair, and the opcode moves two bytes on, for 3 gas. -/
+theorem exchange_rule (hfork : .glamsterdam ≤ fork) {n m : Nat} {a b : U256}
+    (hlt : pc < code.size) (hbyte : code[pc] = 0xe8)
+    (himm : decodePair (byteAtOrZero code (pc + 1)) = some (n, m))
+    (ha : stack[n]? = some a) (hb : stack[m]? = some b) (hgas : 3 ≤ gas) :
+    Hoare fork (At code message pc stack memory gas state substate returnData)
+      (At code message (pc + 2) ((stack.set n b).set m a) memory (gas - 3) state substate
+        returnData) := by
+  apply At.rule hlt hbyte (ofByte_of_decode (op := .exchange) rfl hfork)
+    (instruction_stackN (by simp [stackOnlyStep, hfork]))
+  rintro evm ⟨hc, hj, hm, hpc, hst, hmem, hg, hrun, herr, hout, hs, hss, hrd⟩
+  have hcharge : GasMeter.charge evm.gas OPCODE_EXCHANGE = .ok (gas - 3) := by
+    rw [hg]
+    exact charge_nat hgas
+  have himm' : decodePair (immediateByte evm.code evm.pc) = some (n, m) := by
+    simpa only [immediateByte, hc, hpc] using himm
+  simp only [exchangeStep, chargeGas, hcharge, bind, Except.bind, pure, Except.pure, himm',
+    exchangeItems, hst, ha, hb]
+  exact ⟨_, rfl, hc, hj, hm, by simp [advance, hpc], rfl, hmem, rfl, hrun, herr, hout, hs, hss,
+    hrd⟩
 
 end EthLib.Execution.Evm.Logic
